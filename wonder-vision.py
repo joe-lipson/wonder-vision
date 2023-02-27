@@ -45,9 +45,9 @@ def get_taxon_id(species):
     return (taxon_id)
 
 ###
-# get the vision field for a taxa
-def get_vision(taxa):
-    url = f"https://api.inaturalist.org/v1/taxa/{taxa}"
+# API call to iNat to get the vision field for a taxa
+def get_vision(taxa_id):
+    url = f"https://api.inaturalist.org/v1/taxa/{taxa_id}"
     header = {"Accept": "application/json"}
     pause = 0
 
