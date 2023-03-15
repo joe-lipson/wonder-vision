@@ -18,13 +18,18 @@ def get_taxon_id(species):
     url = f"https://api.inaturalist.org/v1/observations?taxon_id=&taxon_name={url_encoded_species}&per_page=1&order=desc&order_by=created_at"
     header = {"Accept": "application/json"}
     pause = 0
+    taxon_id = None
+    total_results = None
+    name = None
+    common_name = None
+    rank = None
 
     response = requests.get(url, headers=header)
 
     # retry if we're being rate limited
     while response.status_code == 429:
         pause = pause + 2
-        print(f"## Requests are being rate limited, waiting and retrying in {pause} seconds")
+        #print(f"## Requests are being rate limited, waiting and retrying in {pause} seconds")
         time.sleep(pause)
         response = requests.get(url, headers=header)
         if pause > 30:
@@ -34,15 +39,17 @@ def get_taxon_id(species):
     if response.status_code == 200:
         # Parse the JSON response
         json_response = response.json()
+
         if json_response['total_results'] > 0:
             taxon_id = json_response['results'][0]['taxon']['min_species_taxon_id']
-        else:
-            taxon_id = None
+            total_results = json_response['total_results']
+            name = json_response['results'][0]['taxon']['name']
+            rank = json_response['results'][0]['taxon']['rank']
+            common_name = json_response['results'][0]['taxon'].get('preferred_common_name')
     else:
         print("Request failed with status code:", response.status_code)
-        taxon_id = None
 
-    return (taxon_id)
+    return (taxon_id, total_results, name, rank, common_name)
 
 ###
 # API call to iNat to get the vision field for a taxa
@@ -56,7 +63,7 @@ def get_vision(taxa_id):
     # retry if we're being rate limited
     while response.status_code == 429:
         pause = pause + 2
-        print(f"## Requests are being rate limited, waiting and retrying in {pause} seconds")
+        #print(f"## Requests are being rate limited, waiting and retrying in {pause} seconds")
         time.sleep(pause)
         response = requests.get(url, headers=header)
         if pause > 30:
@@ -87,14 +94,18 @@ df = pd.read_excel(args.excel_file, sheet_name=0)
 # Read the first column
 first_column = df.iloc[:, 0]
 
+# print the header
+print(f"species,total results,vision model,iNat matched on,taxonomic rank,common name")
+
 # go through the values line by line
 for species in first_column:
     # strip brackets and whitespace
     species = re.sub(r'\([^)]*\)', '', species).strip()
 
-    taxon_id = get_taxon_id(species)
+    taxon_id, total_results, name, rank, common_name = get_taxon_id(species)
+
     if taxon_id:
         vision = get_vision(taxon_id)
-        print(f"{species} vision: {vision}")
+        print(f"{species},{total_results},{vision},{name},{rank},{common_name}")
     else:
-        print(f"{species}: no observations")
+        print(f"{species},0,False,,,,")
